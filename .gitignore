@@ -9,7 +9,8 @@
 *.tfstate
 terraform.tfstate*
 terraform.tfstate.backup
-
+*.tfvars
+*.json
 
 # Crash log files
 crash.log
