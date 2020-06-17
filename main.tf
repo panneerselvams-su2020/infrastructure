@@ -182,7 +182,7 @@ variable "BACKEND_PORT" {
   description = "backend port"
 }
 
-variable "MAP_PUBLIC_IP_ON_LAUNCH}" {
+variable "MAP_PUBLIC_IP_ON_LAUNCH" {
   description = "to map public ip on launch"
 }
 
