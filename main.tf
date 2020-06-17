@@ -1,81 +1,66 @@
 variable "region" {
   type=string
-  //default = "us-east-1"
 }
 
 variable "cidr_block"{
   type=string
-  //default = "10.0.0.0/16"
 }
 
 variable "cidr_block_subnet_1"{
   type=string
-  //default = "10.0.1.0/24"
 }
 
 variable "cidr_block_availability_zones_1"{
   type=string
-  //default = "us-east-1a"
 }
 
 variable "cidr_block_subnet_2"{
   type=string
-  //default = "10.0.2.0/24"
 }
 
 variable "cidr_block_availability_zones_2"{
   type=string
-  //default = "us-east-1b"
 }
 
 variable "cidr_block_subnet_3"{
   type=string
-  //default = "10.0.3.0/24"
 }
 
 variable "cidr_block_availability_zones_3"{
   type=string
-  //default = "us-east-1c"
 }
 
 variable "AMI_ID" {
   type    = "string"
-  //default = "ami-068663a3c619dd892"
   description = "AMI ID for the instance"
 }
 
 variable "EC2_INSTANCE_SIZE" {
   type    = "string"
-  //default = "t2.micro"
   description = "The EC2 instance size"
 }
 
 variable "EC2_ROOT_VOLUME_SIZE" {
   type    = "string"
-  //default = "20"
   description = "The volume size for the root volume in GiB"
 }
 
 variable "EC2_ROOT_VOLUME_TYPE" {
   type    = "string"
-  //default = "gp2"
   description = "The type of data storage: standard, gp2, io1"
 }
 
 variable "EC2_ROOT_VOLUME_DELETE_ON_TERMINATION" {
-  //default = true
   description = "Delete the root volume on instance termination."
 }
 
 variable "ENGINE" {
   type = "string"
-  //default = "mysql"
   description = "Database Engine"  
 }
 
 variable "INSTANCE_CLASS" {
     type = "string"
-    //default = "db.t3.micro"
     description = "db instance class"
 }
 
@@ -122,13 +107,85 @@ variable "SKIP_FINAL_SHOT" {
 }
 
 variable "ASS5" {
+  type= "string"
   description = "key pair for assignment 5"
 }
+
+variable "SQLPORT" {
+  type= "string"
+  description = "sql port for MySql"
+}
+
+variable "API_TERMINATION" {
+  description = "disable api termination"
+}
+
+variable "HASH_KEY" {
+  description = "Hash Key"
+}
+
+variable "PROVISIONED" {
+  type = "string"
+  description = "provisioned"
+}
+
+variable "ATTRIBUTE1_NAME" {
+  type = "string"
+  description = "attribute1 name"
+}
+
+variable "ATTRIBUTE1_TYPE" {
+  type = "string"
+  description = "attribute1 type"
+}
+
+variable "LIFE_CYCLE_RULE_ENABLE" {
+  description = "Enable life cycle"
+}
+
+variable "READ_CAPACITY" {
+  description = "read capacity"
+}
+
+variable "WRITE_CAPACITY" {
+  description = "write capacity"
+}
+
+variable "TRANSITION_DAYS" {
+  description = "transition days"
+}
+
+variable "STANDARD_IA" {
+  description = "standard ia"
+}
+
+variable "SSE_ALGORITHM" {
+  type = "string"
+  description = "sse algorithm"
+}
+
+variable "ACL" {
+  type = "string"
+  description = "acl"
+}
+
+variable "BUCKET" {
+  type = "string"
+  description = "description name"
+}
+
+variable "FRONTEND_PORT" {
+  description = "frontend port"
+}
+
+variable "BACKEND_PORT" {
+  description = "backend port"
+}
+
 
 //provider
 provider "aws" {
   region  = var.region
-  //version = "~> 3.0"
 }
 
 //vpc
@@ -182,6 +239,7 @@ resource "aws_internet_gateway" "gateway" {
       }
 }
 
+
 //route table
 resource "aws_route_table" "route" {
   vpc_id = "${aws_vpc.csye6225_a4.id}"
@@ -193,6 +251,7 @@ resource "aws_route_table" "route" {
     Name = "Route_1_csye6225_a4"
   }
 }
+
 
 //route table association
 resource "aws_route_table_association" "a1" {
@@ -242,6 +301,22 @@ resource "aws_security_group" "application" {
     cidr_blocks=["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port= "${var.FRONTEND_PORT}"
+    to_port="${var.FRONTEND_PORT}"
+    protocol="tcp"
+    description = "Front End Port"
+    cidr_blocks=["0.0.0.0/0"]
+  }
+
+    ingress {
+    from_port= "${var.BACKEND_PORT}"
+    to_port="${var.BACKEND_PORT}"
+    protocol="tcp"
+    description = "Back End port"
+    cidr_blocks=["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -279,8 +354,8 @@ resource "aws_security_group" "database" {
     vpc_id = "${aws_vpc.csye6225_a4.id}"
 
   ingress {
-    from_port= 3306
-    to_port= 3306
+    from_port= "${var.SQLPORT}"
+    to_port= "${var.SQLPORT}"
     protocol="tcp"
     security_groups = [aws_security_group.application.id]
     cidr_blocks=["0.0.0.0/0"]
@@ -305,23 +380,24 @@ resource "aws_db_subnet_group" "rds_subnet" {
 }
 
 
-// //rds instance
-// resource "aws_db_instance" "rds1" {
-//   engine = "${var.ENGINE}"
-//   instance_class = "${var.INSTANCE_CLASS}"
-//   multi_az = "${var.MULTI_AZ}"
-//   identifier = "${var.IDENTIFIER}"
-//   username = "${var.USERNAME}"
-//   password = "${var.PASSWORD}"
-//   db_subnet_group_name = "${aws_db_subnet_group.rds_subnet.name}"
-//   publicly_accessible = "${var.PUBLICLY_ACCESSIBLE}"
-//   name = "${var.NAME}"
-//   allocated_storage= "${var.ALLOCATED_STORAGE}"
-//   final_snapshot_identifier = "${var.FINAL_SNAPSHOT_IDENTIFIER}"
-//   skip_final_snapshot = "${var.SKIP_FINAL_SHOT}"
-//   vpc_security_group_ids = [aws_security_group.database.id]
-// }
+//rds instance
+resource "aws_db_instance" "rds1" {
+  engine = "${var.ENGINE}"
+  instance_class = "${var.INSTANCE_CLASS}"
+  multi_az = "${var.MULTI_AZ}"
+  identifier = "${var.IDENTIFIER}"
+  username = "${var.USERNAME}"
+  password = "${var.PASSWORD}"
+  db_subnet_group_name = "${aws_db_subnet_group.rds_subnet.name}"
+  publicly_accessible = "${var.PUBLICLY_ACCESSIBLE}"
+  name = "${var.NAME}"
+  allocated_storage= "${var.ALLOCATED_STORAGE}"
+  final_snapshot_identifier = "${var.FINAL_SNAPSHOT_IDENTIFIER}"
+  skip_final_snapshot = "${var.SKIP_FINAL_SHOT}"
+  vpc_security_group_ids = [aws_security_group.database.id]
+}
 
+ 
 
 //key pair
 resource "aws_key_pair" "ass5" {
@@ -336,9 +412,11 @@ resource "aws_instance" "ec2Instance1" {
   //role = "${aws_iam_role.csyerole.name}"
   vpc_security_group_ids = [aws_security_group.application.id]
   subnet_id = "${aws_subnet.subnet_2.id}"
-  disable_api_termination = false
+  disable_api_termination = "${var.API_TERMINATION}"
   key_name = "${aws_key_pair.ass5.key_name}"
   iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile.name}"
+  //user_data = "${data.template_file.init.rendered}"
+  user_data = "${file("userdata.sh")}"
   tags = {
     Name = "ec2_ass5"
   } 
@@ -347,20 +425,31 @@ resource "aws_instance" "ec2Instance1" {
     volume_size = "${var.EC2_ROOT_VOLUME_SIZE}"
     volume_type = "${var.EC2_ROOT_VOLUME_TYPE}"
   }
-
-
 }
+
+//
+  // vars = {
+  //   hostname = ${aws_db_instance.rds1.endpoint}"
+  // }
+
+//   data "template_file" "init" {
+//   template = "${file("userdata.sh.tpl")}"
+
+//   vars = {
+//     hostname = "aws_instance.rds1.endpoint"
+//   }
+// }
 
 //dynamo db table
 resource "aws_dynamodb_table" "csye6225" {
   name = "csye6225"
-  hash_key = "id"
-  billing_mode   = "PROVISIONED"   
-  read_capacity  = 20
-  write_capacity = 20
+  hash_key = "${var.HASH_KEY}"
+  billing_mode   = "${var.PROVISIONED}"   
+  read_capacity  = "${var.READ_CAPACITY}"
+  write_capacity = "${var.WRITE_CAPACITY}"
   attribute {
-    name = "id"
-    type = "S"
+    name = "${var.ATTRIBUTE1_NAME}"
+    type = "${var.ATTRIBUTE1_TYPE}"
   }
 }
 
@@ -392,19 +481,19 @@ resource "aws_iam_instance_profile" "ec2InstanceProfile" {
 
 //S3 bucket
 resource "aws_s3_bucket" "s3bucket" {
-  bucket = "webapp.sridharprasad.panneerselvam"
-  acl = "private"
+  bucket = "${var.BUCKET}"
+  acl = "${var.ACL}"
   lifecycle_rule {
-    enabled = true
+    enabled = "${var.LIFE_CYCLE_RULE_ENABLE}"
     transition {
-      days = 30
-      storage_class = "STANDARD_IA"
+      days = "${var.TRANSITION_DAYS}"
+      storage_class = "${var.STANDARD_IA}"
     }
   }
     server_side_encryption_configuration {
     rule {
       apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
+        sse_algorithm = "${var.SSE_ALGORITHM}"
       }
     }
   }
