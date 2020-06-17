@@ -182,6 +182,25 @@ variable "BACKEND_PORT" {
   description = "backend port"
 }
 
+variable "MAP_PUBLIC_IP_ON_LAUNCH}" {
+  description = "to map public ip on launch"
+}
+
+variable "ENABLE_DNS_HOSTNAMES" {
+  description = "enable dns hostnames"
+}
+
+variable "ENABLE_DNS_SUPPORT" {
+  description = "enable dns support"
+}
+
+variable "ENABLE_CLASSICLINK_DNS_SUPPORT" {
+  description = "enable classiclink dns support"
+}
+
+variable "ASSIGN_GENERATED_IPV6_CIDR_BLOCK" {
+  description = "assign generated ipv6 cidr block"
+}
 
 //provider
 provider "aws" {
@@ -191,10 +210,10 @@ provider "aws" {
 //vpc
 resource "aws_vpc" "csye6225_a4" {
   cidr_block = var.cidr_block
-  enable_dns_hostnames = true
-  enable_dns_support = true
-  enable_classiclink_dns_support = true
-  assign_generated_ipv6_cidr_block = false
+  enable_dns_hostnames = "${var.ENABLE_DNS_HOSTNAMES}"
+  enable_dns_support = "${var.ENABLE_DNS_SUPPORT}"
+  enable_classiclink_dns_support = "${var.ENABLE_CLASSICLINK_DNS_SUPPORT}"
+  assign_generated_ipv6_cidr_block = "${var.ASSIGN_GENERATED_IPV6_CIDR_BLOCK}"
   tags = {
     Name = "csye6225_a4"
   }
@@ -205,7 +224,7 @@ resource "aws_subnet" "subnet_1"{
     cidr_block = var.cidr_block_subnet_1
     vpc_id = aws_vpc.csye6225_a4.id
     availability_zone = var.cidr_block_availability_zones_1
-    map_public_ip_on_launch = true
+    map_public_ip_on_launch = "${var.MAP_PUBLIC_IP_ON_LAUNCH}"
     tags = {
         Name = "subnet_1"
     }
@@ -215,7 +234,7 @@ resource "aws_subnet" "subnet_2"{
     cidr_block = var.cidr_block_subnet_2
     vpc_id = aws_vpc.csye6225_a4.id
     availability_zone = var.cidr_block_availability_zones_2
-    map_public_ip_on_launch = true
+    map_public_ip_on_launch = "${var.MAP_PUBLIC_IP_ON_LAUNCH}"
     tags = {
         Name = "subnet_2"
     }
@@ -225,7 +244,7 @@ resource "aws_subnet" "subnet_3"{
     cidr_block = var.cidr_block_subnet_3
     vpc_id = aws_vpc.csye6225_a4.id
     availability_zone = var.cidr_block_availability_zones_3
-    map_public_ip_on_launch = true
+    map_public_ip_on_launch = "${var.MAP_PUBLIC_IP_ON_LAUNCH}"
     tags = {
         Name = "subnet_3"
     }
@@ -284,7 +303,6 @@ resource "aws_security_group" "application" {
     description = "HTTPS"
     cidr_blocks=["0.0.0.0/0"]
   }
-
   ingress {
     from_port= 80
     to_port=80
@@ -292,7 +310,6 @@ resource "aws_security_group" "application" {
     description = "HTTP"
     cidr_blocks=["0.0.0.0/0"]
   }
-
   ingress {
     from_port= 22
     to_port=22
@@ -300,7 +317,6 @@ resource "aws_security_group" "application" {
     description = "Telnet"
     cidr_blocks=["0.0.0.0/0"]
   }
-
   ingress {
     from_port= "${var.FRONTEND_PORT}"
     to_port="${var.FRONTEND_PORT}"
@@ -308,8 +324,7 @@ resource "aws_security_group" "application" {
     description = "Front End Port"
     cidr_blocks=["0.0.0.0/0"]
   }
-
-    ingress {
+  ingress {
     from_port= "${var.BACKEND_PORT}"
     to_port="${var.BACKEND_PORT}"
     protocol="tcp"
@@ -323,27 +338,6 @@ resource "aws_security_group" "application" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  // egress {
-  //   from_port= 443
-  //   to_port=443
-  //   protocol="tcp"
-  //   cidr_block=["0.0.0.0/0"]
-  // }
-
-  // egress {
-  //   from_port= 80
-  //   to_port=80
-  //   protocol="tcp"
-  //   cidr_block=["0.0.0.0/0"]
-  // }
-
-  // egress {
-  //   from_port= 22
-  //   to_port=22
-  //   protocol="tcp"
-  //   cidr_block=["0.0.0.0/0"]
-  // }
 }
 
 
@@ -360,12 +354,12 @@ resource "aws_security_group" "database" {
     security_groups = [aws_security_group.application.id]
     cidr_blocks=["0.0.0.0/0"]
   }
-  // egress {
-  //   from_port= 3306
-  //   to_port= 3306
-  //   protocol="tcp"
-  //   cidr_block=["0.0.0.0/0"]
-  // }  
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 
@@ -405,6 +399,13 @@ resource "aws_key_pair" "ass5" {
   public_key = "${var.ASS5}"
 }
 
+data "template_file" "init" {
+  template = "${file("./userdata.sh")}"
+  vars = {
+    hostname = aws_db_instance.rds1.endpoint
+  }
+}
+
 //ec2 instance
 resource "aws_instance" "ec2Instance1" {
   ami = "${var.AMI_ID}"
@@ -412,11 +413,11 @@ resource "aws_instance" "ec2Instance1" {
   //role = "${aws_iam_role.csyerole.name}"
   vpc_security_group_ids = [aws_security_group.application.id]
   subnet_id = "${aws_subnet.subnet_2.id}"
+  depends_on = [aws_db_instance.rds1]
   disable_api_termination = "${var.API_TERMINATION}"
   key_name = "${aws_key_pair.ass5.key_name}"
   iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile.name}"
-  //user_data = "${data.template_file.init.rendered}"
-  user_data = "${file("userdata.sh")}"
+  user_data = "${data.template_file.init.rendered}"
   tags = {
     Name = "ec2_ass5"
   } 
@@ -427,18 +428,7 @@ resource "aws_instance" "ec2Instance1" {
   }
 }
 
-//
-  // vars = {
-  //   hostname = ${aws_db_instance.rds1.endpoint}"
-  // }
 
-//   data "template_file" "init" {
-//   template = "${file("userdata.sh.tpl")}"
-
-//   vars = {
-//     hostname = "aws_instance.rds1.endpoint"
-//   }
-// }
 
 //dynamo db table
 resource "aws_dynamodb_table" "csye6225" {
