@@ -1,52 +1,48 @@
 variable "region" {
-  type=string
+  description = "aws-region"
 }
 
 variable "cidr_block"{
-  type=string
+  description = "cidr-block"
 }
 
 variable "cidr_block_subnet_1"{
-  type=string
+  description = "cidr block subnet1 "
 }
 
 variable "cidr_block_availability_zones_1"{
-  type=string
+  description = "zone 1"
 }
 
 variable "cidr_block_subnet_2"{
-  type=string
+  description = "cidr block subnet2 "
 }
 
 variable "cidr_block_availability_zones_2"{
-  type=string
+  description = "zone 2"
 }
 
 variable "cidr_block_subnet_3"{
-  type=string
+  description = "cidr block subnet3 "
 }
 
 variable "cidr_block_availability_zones_3"{
-  type=string
+  description = "zone 3"
 }
 
 variable "AMI_ID" {
-  type    = "string"
   description = "AMI ID for the instance"
 }
 
 variable "EC2_INSTANCE_SIZE" {
-  type    = "string"
   description = "The EC2 instance size"
 }
 
 variable "EC2_ROOT_VOLUME_SIZE" {
-  type    = "string"
   description = "The volume size for the root volume in GiB"
 }
 
 variable "EC2_ROOT_VOLUME_TYPE" {
-  type    = "string"
   description = "The type of data storage: standard, gp2, io1"
 }
 
@@ -55,12 +51,10 @@ variable "EC2_ROOT_VOLUME_DELETE_ON_TERMINATION" {
 }
 
 variable "ENGINE" {
-  type = "string"
   description = "Database Engine"  
 }
 
 variable "INSTANCE_CLASS" {
-    type = "string"
     description = "db instance class"
 }
 
@@ -69,17 +63,14 @@ variable "MULTI_AZ" {
 }
 
 variable "IDENTIFIER" {
-  type = "string"
   description = "DB instance identifier"
 }
 
 variable "USERNAME" {
-  type = "string"
   description = "username"
 }
 
 variable "PASSWORD" {
-  type = "string"
   description = "password"
 }
 
@@ -88,17 +79,14 @@ variable "PUBLICLY_ACCESSIBLE" {
 }
 
 variable "NAME" {
-  type = "string"
   description = "db name"
 }
 
 variable "ALLOCATED_STORAGE" {
-  type = "string"
   description = "allocated storage"
 }
 
 variable "FINAL_SNAPSHOT_IDENTIFIER" {
-  type = "string"
   description = "snapshot"
 }
 
@@ -107,12 +95,10 @@ variable "SKIP_FINAL_SHOT" {
 }
 
 variable "ASS5" {
-  type= "string"
   description = "key pair for assignment 5"
 }
 
 variable "SQLPORT" {
-  type= "string"
   description = "sql port for MySql"
 }
 
@@ -125,17 +111,14 @@ variable "HASH_KEY" {
 }
 
 variable "PROVISIONED" {
-  type = "string"
   description = "provisioned"
 }
 
 variable "ATTRIBUTE1_NAME" {
-  type = "string"
   description = "attribute1 name"
 }
 
 variable "ATTRIBUTE1_TYPE" {
-  type = "string"
   description = "attribute1 type"
 }
 
@@ -160,17 +143,14 @@ variable "STANDARD_IA" {
 }
 
 variable "SSE_ALGORITHM" {
-  type = "string"
   description = "sse algorithm"
 }
 
 variable "ACL" {
-  type = "string"
   description = "acl"
 }
 
 variable "BUCKET" {
-  type = "string"
   description = "description name"
 }
 
@@ -403,6 +383,8 @@ data "template_file" "init" {
   template = "${file("./userdata.sh")}"
   vars = {
     hostname = aws_db_instance.rds1.endpoint
+    dbname = aws_db_instance.rds1.name
+    region = aws.region
   }
 }
 
