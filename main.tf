@@ -386,10 +386,12 @@ resource "aws_key_pair" "ass5" {
 data "template_file" "init" {
   template = "${file("./userdata.sh")}"
   vars = {
-    hostname = aws_db_instance.rds1.endpoint
+    hostname = aws_db_instance.rds1.address
     dbname = var.NAME
     region = var.region
-    s3_bucket_name = var.BUCKET
+    s3bucket = var.BUCKET
+    username = var.USERNAME
+    password = var.PASSWORD
   }
 }
 
@@ -403,7 +405,7 @@ resource "aws_instance" "ec2Instance1" {
   depends_on = [aws_db_instance.rds1]
   disable_api_termination = "${var.API_TERMINATION}"
   key_name = "${aws_key_pair.ass5.key_name}"
-  iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile.name}"
+  iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
   user_data = "${data.template_file.init.rendered}"
   tags = {
     Name = "ec2_ass5"
@@ -451,8 +453,8 @@ resource "aws_iam_role_policy_attachment" "csyeroleAttach" {
 }
 
 //Instance Profile
-resource "aws_iam_instance_profile" "ec2InstanceProfile" {
-  name = "ec2InstanceProfile"
+resource "aws_iam_instance_profile" "ec2InstanceProfile1" {
+  name = "ec2InstanceProfile1"
   role = "${aws_iam_role.EC2-CSYE6225.name}"
 }
 
