@@ -150,6 +150,10 @@ variable "ACL" {
   description = "acl"
 }
 
+variable "FORCE_DESTROY" {
+  description = "force destroy s3 bucket"
+}
+
 variable "BUCKET" {
   description = "description name"
 }
@@ -383,8 +387,9 @@ data "template_file" "init" {
   template = "${file("./userdata.sh")}"
   vars = {
     hostname = aws_db_instance.rds1.endpoint
-    dbname = aws_db_instance.rds1.name
-    region = aws.region
+    dbname = var.NAME
+    region = var.region
+    s3_bucket_name = var.BUCKET
   }
 }
 
@@ -455,6 +460,7 @@ resource "aws_iam_instance_profile" "ec2InstanceProfile" {
 resource "aws_s3_bucket" "s3bucket" {
   bucket = "${var.BUCKET}"
   acl = "${var.ACL}"
+  force_destroy= "${var.FORCE_DESTROY}"
   lifecycle_rule {
     enabled = "${var.LIFE_CYCLE_RULE_ENABLE}"
     transition {
