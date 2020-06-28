@@ -158,6 +158,10 @@ variable "BUCKET" {
   description = "description name"
 }
 
+variable "BUCKETA" {
+  description = "description name"
+}
+
 variable "FRONTEND_PORT" {
   description = "frontend port"
 }
@@ -184,6 +188,34 @@ variable "ENABLE_CLASSICLINK_DNS_SUPPORT" {
 
 variable "ASSIGN_GENERATED_IPV6_CIDR_BLOCK" {
   description = "assign generated ipv6 cidr block"
+}
+
+variable "IAM_USER" {
+  description = "IAM User"
+}
+
+variable "AWSCODEDEPLOYPOLICYARN" {
+  description = "code deploy policy arn"
+}
+
+variable "COMPUTE_PLATFORM" {
+  description = "compute platform"
+}
+
+variable "HOSTCOUNT" {
+  description = "host count"
+}
+
+variable "HOSTSVALUE" {
+  description = "hosts value"
+}
+
+variable "ALARM" {
+  description = "alarm"
+}
+
+variable "ROLLBACK" {
+  description = "rollback"
 }
 
 //provider
@@ -336,7 +368,6 @@ resource "aws_security_group" "database" {
     to_port= "${var.SQLPORT}"
     protocol="tcp"
     security_groups = [aws_security_group.application.id]
-    cidr_blocks=["0.0.0.0/0"]
   }
   egress {
     from_port   = 0
@@ -408,7 +439,7 @@ resource "aws_instance" "ec2Instance1" {
   iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
   user_data = "${data.template_file.init.rendered}"
   tags = {
-    Name = "ec2_ass5"
+    Name = "webapp"
   } 
   root_block_device {
     delete_on_termination = "${var.EC2_ROOT_VOLUME_DELETE_ON_TERMINATION}"
@@ -439,6 +470,7 @@ resource "aws_iam_role" "EC2-CSYE6225" {
   assume_role_policy = "${file("EC2-CSYE6225.json")}"
 }
 
+
 //IAM policy
 resource "aws_iam_policy" "WebAppS3" {
   name        = "WebAppS3"
@@ -446,11 +478,40 @@ resource "aws_iam_policy" "WebAppS3" {
   policy = "${file("WebAppS3.json")}"
 }
 
+resource "aws_iam_policy" "CodeDeployAllPolicies" {
+  name        = "CodeDeployAllPolicies"
+  //description = "WebAppS3 policy will allow EC2 instances to perform S3 buckets. This is required for applications on your EC2 instance to talk to S3 bucket."
+  policy = "${file("CodeDeployAllPolicies.json")}"
+}
+
+resource "aws_iam_policy" "CodeDeploy-EC2-S3" {
+  name        = "CodeDeploy-EC2-S3"
+  //description = "WebAppS3 policy will allow EC2 instances to perform S3 buckets. This is required for applications on your EC2 instance to talk to S3 bucket."
+  policy = "${file("CodeDeploy-EC2-S3.json")}"
+}
+
+
 //IAM policy attachment
 resource "aws_iam_role_policy_attachment" "csyeroleAttach" {
+  //user = "${var.IAM_USER}"
   role       = "${aws_iam_role.EC2-CSYE6225.name}"
   policy_arn = "${aws_iam_policy.WebAppS3.arn}"
 }
+
+resource "aws_iam_user_policy_attachment" "codedeployallpoliciesAttach" {
+  user = "${var.IAM_USER}"
+  policy_arn = "${aws_iam_policy.CodeDeployAllPolicies.arn}"
+}
+
+resource "aws_iam_role_policy_attachment" "codedeployec2s3Attach" {
+  role       = "${aws_iam_role.EC2-CSYE6225.name}"
+  policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
+}
+
+// resource "aws_iam_role_policy_attachment" "codedeployAttach" {
+//   role = "${aws_iam_role.CodeDeployEC2ServiceRole.name}"
+//   policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
+// }
 
 //Instance Profile
 resource "aws_iam_instance_profile" "ec2InstanceProfile1" {
@@ -477,7 +538,80 @@ resource "aws_s3_bucket" "s3bucket" {
       }
     }
   }
+}
+
+//S3 bucket
+resource "aws_s3_bucket" "s3bucket1" {
+  bucket = "${var.BUCKETA}"
+  force_destroy= "${var.FORCE_DESTROY}"
+  lifecycle_rule {
+    enabled = "${var.LIFE_CYCLE_RULE_ENABLE}"
+    transition {
+      days = "${var.TRANSITION_DAYS}"
+      storage_class = "${var.STANDARD_IA}"
+    }
+  }
+    server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "${var.SSE_ALGORITHM}"
+      }
+    }
+  }
   
 }
+
+resource "aws_iam_role" "CodeDeployIAMRole" {
+  name = "CodeDeployIAMRole"
+  assume_role_policy = "${file("CodeDeployAgentPolicy.json")}"
+
+}
+resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
+  policy_arn = "${var.AWSCODEDEPLOYPOLICYARN}"
+  role       = "${aws_iam_role.CodeDeployIAMRole.name}"
+}
+
+resource "aws_codedeploy_app" "csye6225-webapp" {
+  compute_platform = "${var.COMPUTE_PLATFORM}"
+  name             = "csye6225-webapp"
+}
+
+resource "aws_codedeploy_deployment_config" "webapp" {
+  deployment_config_name = "test-deployment-config"
+
+  minimum_healthy_hosts {
+    type  = "${var.HOSTCOUNT}"
+    value = "${var.HOSTSVALUE}"
+  }
+}
+
+resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
+  app_name               = "${aws_codedeploy_app.csye6225-webapp.name}"
+  deployment_group_name  = "csye6225-webapp-deployment"
+  service_role_arn       = "${aws_iam_role.CodeDeployIAMRole.arn}"
+  deployment_config_name = "${aws_codedeploy_deployment_config.webapp.id}"
+
+  ec2_tag_filter {
+    key   = "Name"
+    type  = "KEY_AND_VALUE"
+    value = "webapp"
+  }
+
+  auto_rollback_configuration {
+    enabled = "${var.ROLLBACK}"
+    events  = ["DEPLOYMENT_FAILURE"]
+  }
+
+  alarm_configuration {
+    alarms  = ["my-alarm-name"]
+    enabled = "${var.ALARM}"
+  }
+}
+
+
+
+
+
+
 
 
