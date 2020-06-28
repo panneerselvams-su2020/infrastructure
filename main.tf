@@ -186,6 +186,10 @@ variable "ASSIGN_GENERATED_IPV6_CIDR_BLOCK" {
   description = "assign generated ipv6 cidr block"
 }
 
+variable "IAM_USER" {
+  description = "IAM User"
+}
+
 //provider
 provider "aws" {
   region  = var.region
@@ -336,7 +340,6 @@ resource "aws_security_group" "database" {
     to_port= "${var.SQLPORT}"
     protocol="tcp"
     security_groups = [aws_security_group.application.id]
-    cidr_blocks=["0.0.0.0/0"]
   }
   egress {
     from_port   = 0
@@ -408,7 +411,7 @@ resource "aws_instance" "ec2Instance1" {
   iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
   user_data = "${data.template_file.init.rendered}"
   tags = {
-    Name = "ec2_ass5"
+    Name = "webapp"
   } 
   root_block_device {
     delete_on_termination = "${var.EC2_ROOT_VOLUME_DELETE_ON_TERMINATION}"
@@ -439,6 +442,15 @@ resource "aws_iam_role" "EC2-CSYE6225" {
   assume_role_policy = "${file("EC2-CSYE6225.json")}"
 }
 
+resource "aws_iam_role" "CodeDeployEC2ServiceRole" {
+  name = "CodeDeployEC2ServiceRole"
+  assume_role_policy = "${file("CodeDeploy-EC2-S3.json")}"
+}
+
+// resource "aws_iam_role" "CodeDeployServiceRole" {
+//   name = "CodeDeployEC2ServiceRole"
+// }
+
 //IAM policy
 resource "aws_iam_policy" "WebAppS3" {
   name        = "WebAppS3"
@@ -446,10 +458,36 @@ resource "aws_iam_policy" "WebAppS3" {
   policy = "${file("WebAppS3.json")}"
 }
 
+resource "aws_iam_user_policy" "CodeDeploy-EC2-S3" {
+  name = "CodeDeploy-EC2-S3"
+  description = "This policy is required for EC2 instances to download latest application revision"
+  user = "${var.IAM_USER}"
+  policy = "${file("CodeDeploy-EC2-S3.json")}"
+}
+
+resource "aws_iam_user_policy" "CircleCI-Upload-To-S3" {
+  name = "CircleCI-Upload-To-S3"
+  description = "This policy allows CircleCI to upload artifacts from latest successful build to dedicated S3 bucket used by CodeDeploy"
+  user = "${var.IAM_USER}"
+  policy = "${file("CircleCI-Upload-To-S3.json")}"
+}
+
+resource "aws_iam_user_policy" "CircleCI-Code-Deploy" {
+  name = "CircleCI-Code-Deploy"
+  description = "This policy allows CircleCI to call CodeDeploy APIs to initiate application deployment on EC2 instances"
+  user = "${var.IAM_USER}"
+  policy = "${file("CircleCI-Code-Deploy.json")}"
+}
+
 //IAM policy attachment
 resource "aws_iam_role_policy_attachment" "csyeroleAttach" {
   role       = "${aws_iam_role.EC2-CSYE6225.name}"
   policy_arn = "${aws_iam_policy.WebAppS3.arn}"
+}
+
+resource "aws_iam_role_policy_attachment" "codedeployAttach" {
+  role = "${aws_iam_role.CodeDeployEC2ServiceRole.name}"
+  policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
 }
 
 //Instance Profile
@@ -477,7 +515,81 @@ resource "aws_s3_bucket" "s3bucket" {
       }
     }
   }
+}
+
+//S3 bucket
+resource "aws_s3_bucket" "s3bucket1" {
+  bucket = "${var.BUCKET1}"
+  force_destroy= "${var.FORCE_DESTROY}"
+  lifecycle_rule {
+    enabled = "${var.LIFE_CYCLE_RULE_ENABLE}"
+    transition {
+      days = "${var.TRANSITION_DAYS}"
+      storage_class = "${var.STANDARD_IA}"
+    }
+  }
+    server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        sse_algorithm = "${var.SSE_ALGORITHM}"
+      }
+    }
+  }
   
 }
+
+resource "aws_iam_role" "CodeDeployIAMRole" {
+  name = "Code-Deploy"
+  assume_role_policy = "${file("CodeDeployAgentPolicy.json")}"
+
+}
+resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+  role       = "${aws_iam_role.CodeDeployIAMRole.name}"
+}
+resource "aws_sns_topic" "example" {
+  name = "example-topic"
+}
+resource "aws_codedeploy_app" "csye6225-webapp" {
+  compute_platform = "Server"
+  name             = "csye6225-webapp"
+}
+resource "aws_codedeploy_deployment_config" "webapp" {
+  deployment_config_name = "test-deployment-config"
+
+  minimum_healthy_hosts {
+    type  = "HOST_COUNT"
+    value = 2
+  }
+}
+
+resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
+  app_name               = "${aws_codedeploy_app.csye6225-webapp.name}"
+  deployment_group_name  = "csye6225-webapp-deployment"
+  service_role_arn       = "${aws_iam_role.CodeDeployIAMRole.arn}"
+  deployment_config_name = "${aws_codedeploy_deployment_config.webapp.id}"
+
+  ec2_tag_filter {
+    key   = "Name"
+    type  = "KEY_AND_VALUE"
+    value = "webapp"
+  }
+
+  auto_rollback_configuration {
+    enabled = true
+    events  = ["DEPLOYMENT_FAILURE"]
+  }
+
+  alarm_configuration {
+    alarms  = ["my-alarm-name"]
+    enabled = true
+  }
+}
+
+
+
+
+
+
 
 
