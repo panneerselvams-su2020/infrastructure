@@ -158,6 +158,10 @@ variable "BUCKET" {
   description = "description name"
 }
 
+variable "BUCKETA" {
+  description = "description name"
+}
+
 variable "FRONTEND_PORT" {
   description = "frontend port"
 }
@@ -188,6 +192,30 @@ variable "ASSIGN_GENERATED_IPV6_CIDR_BLOCK" {
 
 variable "IAM_USER" {
   description = "IAM User"
+}
+
+variable "AWSCODEDEPLOYPOLICYARN" {
+  description = "code deploy policy arn"
+}
+
+variable "COMPUTE_PLATFORM" {
+  description = "compute platform"
+}
+
+variable "HOSTCOUNT" {
+  description = "host count"
+}
+
+variable "HOSTSVALUE" {
+  description = "hosts value"
+}
+
+variable "ALARM" {
+  description = "alarm"
+}
+
+variable "ROLLBACK" {
+  description = "rollback"
 }
 
 //provider
@@ -442,14 +470,6 @@ resource "aws_iam_role" "EC2-CSYE6225" {
   assume_role_policy = "${file("EC2-CSYE6225.json")}"
 }
 
-resource "aws_iam_role" "CodeDeployEC2ServiceRole" {
-  name = "CodeDeployEC2ServiceRole"
-  assume_role_policy = "${file("CodeDeploy-EC2-S3.json")}"
-}
-
-// resource "aws_iam_role" "CodeDeployServiceRole" {
-//   name = "CodeDeployEC2ServiceRole"
-// }
 
 //IAM policy
 resource "aws_iam_policy" "WebAppS3" {
@@ -458,37 +478,40 @@ resource "aws_iam_policy" "WebAppS3" {
   policy = "${file("WebAppS3.json")}"
 }
 
-resource "aws_iam_user_policy" "CodeDeploy-EC2-S3" {
-  name = "CodeDeploy-EC2-S3"
-  description = "This policy is required for EC2 instances to download latest application revision"
-  user = "${var.IAM_USER}"
+resource "aws_iam_policy" "CodeDeployAllPolicies" {
+  name        = "CodeDeployAllPolicies"
+  //description = "WebAppS3 policy will allow EC2 instances to perform S3 buckets. This is required for applications on your EC2 instance to talk to S3 bucket."
+  policy = "${file("CodeDeployAllPolicies.json")}"
+}
+
+resource "aws_iam_policy" "CodeDeploy-EC2-S3" {
+  name        = "CodeDeploy-EC2-S3"
+  //description = "WebAppS3 policy will allow EC2 instances to perform S3 buckets. This is required for applications on your EC2 instance to talk to S3 bucket."
   policy = "${file("CodeDeploy-EC2-S3.json")}"
 }
 
-resource "aws_iam_user_policy" "CircleCI-Upload-To-S3" {
-  name = "CircleCI-Upload-To-S3"
-  description = "This policy allows CircleCI to upload artifacts from latest successful build to dedicated S3 bucket used by CodeDeploy"
-  user = "${var.IAM_USER}"
-  policy = "${file("CircleCI-Upload-To-S3.json")}"
-}
-
-resource "aws_iam_user_policy" "CircleCI-Code-Deploy" {
-  name = "CircleCI-Code-Deploy"
-  description = "This policy allows CircleCI to call CodeDeploy APIs to initiate application deployment on EC2 instances"
-  user = "${var.IAM_USER}"
-  policy = "${file("CircleCI-Code-Deploy.json")}"
-}
 
 //IAM policy attachment
 resource "aws_iam_role_policy_attachment" "csyeroleAttach" {
+  //user = "${var.IAM_USER}"
   role       = "${aws_iam_role.EC2-CSYE6225.name}"
   policy_arn = "${aws_iam_policy.WebAppS3.arn}"
 }
 
-resource "aws_iam_role_policy_attachment" "codedeployAttach" {
-  role = "${aws_iam_role.CodeDeployEC2ServiceRole.name}"
+resource "aws_iam_user_policy_attachment" "codedeployallpoliciesAttach" {
+  user = "${var.IAM_USER}"
+  policy_arn = "${aws_iam_policy.CodeDeployAllPolicies.arn}"
+}
+
+resource "aws_iam_role_policy_attachment" "codedeployec2s3Attach" {
+  role       = "${aws_iam_role.EC2-CSYE6225.name}"
   policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
 }
+
+// resource "aws_iam_role_policy_attachment" "codedeployAttach" {
+//   role = "${aws_iam_role.CodeDeployEC2ServiceRole.name}"
+//   policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
+// }
 
 //Instance Profile
 resource "aws_iam_instance_profile" "ec2InstanceProfile1" {
@@ -519,7 +542,7 @@ resource "aws_s3_bucket" "s3bucket" {
 
 //S3 bucket
 resource "aws_s3_bucket" "s3bucket1" {
-  bucket = "${var.BUCKET1}"
+  bucket = "${var.BUCKETA}"
   force_destroy= "${var.FORCE_DESTROY}"
   lifecycle_rule {
     enabled = "${var.LIFE_CYCLE_RULE_ENABLE}"
@@ -539,27 +562,26 @@ resource "aws_s3_bucket" "s3bucket1" {
 }
 
 resource "aws_iam_role" "CodeDeployIAMRole" {
-  name = "Code-Deploy"
+  name = "CodeDeployIAMRole"
   assume_role_policy = "${file("CodeDeployAgentPolicy.json")}"
 
 }
 resource "aws_iam_role_policy_attachment" "AWSCodeDeployRole" {
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+  policy_arn = "${var.AWSCODEDEPLOYPOLICYARN}"
   role       = "${aws_iam_role.CodeDeployIAMRole.name}"
 }
-resource "aws_sns_topic" "example" {
-  name = "example-topic"
-}
+
 resource "aws_codedeploy_app" "csye6225-webapp" {
-  compute_platform = "Server"
+  compute_platform = "${var.COMPUTE_PLATFORM}"
   name             = "csye6225-webapp"
 }
+
 resource "aws_codedeploy_deployment_config" "webapp" {
   deployment_config_name = "test-deployment-config"
 
   minimum_healthy_hosts {
-    type  = "HOST_COUNT"
-    value = 2
+    type  = "${var.HOSTCOUNT}"
+    value = "${var.HOSTSVALUE}"
   }
 }
 
@@ -576,13 +598,13 @@ resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
   }
 
   auto_rollback_configuration {
-    enabled = true
+    enabled = "${var.ROLLBACK}"
     events  = ["DEPLOYMENT_FAILURE"]
   }
 
   alarm_configuration {
     alarms  = ["my-alarm-name"]
-    enabled = true
+    enabled = "${var.ALARM}"
   }
 }
 
