@@ -218,6 +218,10 @@ variable "ROLLBACK" {
   description = "rollback"
 }
 
+variable "CloudWatchPolicyARN" {
+  description = "CloudWatchPolicy ARN"
+}
+
 //provider
 provider "aws" {
   region  = var.region
@@ -401,7 +405,7 @@ resource "aws_db_instance" "rds1" {
   publicly_accessible = "${var.PUBLICLY_ACCESSIBLE}"
   name = "${var.NAME}"
   allocated_storage= "${var.ALLOCATED_STORAGE}"
-  final_snapshot_identifier = "${var.FINAL_SNAPSHOT_IDENTIFIER}"
+  //final_snapshot_identifier = "${var.FINAL_SNAPSHOT_IDENTIFIER}"
   skip_final_snapshot = "${var.SKIP_FINAL_SHOT}"
   vpc_security_group_ids = [aws_security_group.database.id]
 }
@@ -430,7 +434,6 @@ data "template_file" "init" {
 resource "aws_instance" "ec2Instance1" {
   ami = "${var.AMI_ID}"
   instance_type = "${var.EC2_INSTANCE_SIZE}"
-  //role = "${aws_iam_role.csyerole.name}"
   vpc_security_group_ids = [aws_security_group.application.id]
   subnet_id = "${aws_subnet.subnet_2.id}"
   depends_on = [aws_db_instance.rds1]
@@ -508,10 +511,10 @@ resource "aws_iam_role_policy_attachment" "codedeployec2s3Attach" {
   policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
 }
 
-// resource "aws_iam_role_policy_attachment" "codedeployAttach" {
-//   role = "${aws_iam_role.CodeDeployEC2ServiceRole.name}"
-//   policy_arn = "${aws_iam_policy.CodeDeploy-EC2-S3.arn}"
-// }
+resource "aws_iam_role_policy_attachment" "CloudWatchAgentServerPolicyAttach" {
+  role = "${aws_iam_role.EC2-CSYE6225.name}"
+  policy_arn = "${var.CloudWatchPolicyARN}"
+}
 
 //Instance Profile
 resource "aws_iam_instance_profile" "ec2InstanceProfile1" {
