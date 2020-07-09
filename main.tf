@@ -434,7 +434,6 @@ data "template_file" "init" {
 resource "aws_instance" "ec2Instance1" {
   ami = "${var.AMI_ID}"
   instance_type = "${var.EC2_INSTANCE_SIZE}"
-  //role = "${aws_iam_role.csyerole.name}"
   vpc_security_group_ids = [aws_security_group.application.id]
   subnet_id = "${aws_subnet.subnet_2.id}"
   depends_on = [aws_db_instance.rds1]
