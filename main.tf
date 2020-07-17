@@ -444,7 +444,7 @@ resource "aws_security_group" "application" {
     to_port=80
     protocol="tcp"
     description = "HTTP"
-    cidr_blocks=["0.0.0.0/0"]
+    security_groups = [aws_security_group.loadbalancer.id]
   }
   ingress {
     from_port= 22
@@ -458,14 +458,14 @@ resource "aws_security_group" "application" {
     to_port="${var.FRONTEND_PORT}"
     protocol="tcp"
     description = "Front End Port"
-    cidr_blocks=["0.0.0.0/0"]
+    security_groups = [aws_security_group.loadbalancer.id]
   }
   ingress {
     from_port= "${var.BACKEND_PORT}"
     to_port="${var.BACKEND_PORT}"
     protocol="tcp"
     description = "Back End port"
-    cidr_blocks=["0.0.0.0/0"]
+    security_groups = [aws_security_group.loadbalancer.id]
   }
 
   egress {
@@ -512,8 +512,8 @@ resource "aws_security_group" "loadbalancer" {
     cidr_blocks=["0.0.0.0/0"]
     }
     ingress {
-    from_port= 8080
-    to_port=8080
+    from_port="${var.BACKEND_PORT}"
+    to_port="${var.BACKEND_PORT}"
     protocol="tcp"
     description = "HTTP"
     cidr_blocks=["0.0.0.0/0"]
@@ -748,6 +748,33 @@ resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
     enabled = "${var.ROLLBACK}"
     events  = ["DEPLOYMENT_FAILURE"]
   }
+
+  autoscaling_groups = ["${aws_autoscaling_group.autoscale_webapp_group.name}"]
+
+  alarm_configuration {
+    alarms  = ["my-alarm-name"]
+    enabled = "${var.ALARM}"
+  }
+}
+
+resource "aws_codedeploy_deployment_group" "csye6225-webappUI-deployment" {
+  app_name               = "${aws_codedeploy_app.csye6225-webapp.name}"
+  deployment_group_name  = "csye6225-webappUI-deployment"
+  service_role_arn       = "${aws_iam_role.CodeDeployIAMRole.arn}"
+  deployment_config_name = "${aws_codedeploy_deployment_config.webapp.id}"
+
+  ec2_tag_filter {
+    key   = "Name"
+    type  = "KEY_AND_VALUE"
+    value = "webapp"
+  }
+
+  auto_rollback_configuration {
+    enabled = "${var.ROLLBACK}"
+    events  = ["DEPLOYMENT_FAILURE"]
+  }
+
+  autoscaling_groups = ["${aws_autoscaling_group.autoscale_webapp_group.name}"]
 
   alarm_configuration {
     alarms  = ["my-alarm-name"]
