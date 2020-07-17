@@ -222,6 +222,122 @@ variable "CloudWatchPolicyARN" {
   description = "CloudWatchPolicy ARN"
 }
 
+variable "PUBLIC_IP_ASSOCIATE" {
+  description = "associate public ip address"
+}
+
+variable "VOLUME_SIZE" {
+  description = "Volume Size"
+}
+
+variable "VOLUME_TYPE" {
+  description = "Volume Type"
+}
+
+variable "DESIRED_CAPACITY" {
+  description = "desired capacity"
+}
+
+variable "ADJUSTMENTTYPE" {
+  description = "adjustment type"
+}
+
+variable "DEFAULT_COOLDOWN" {
+  description = "default cooldown"
+}
+
+variable "SCALINGDOWNADJUSTMENT" {
+  description = "scaling down adjustment"
+}
+
+variable "SCALINGUPADJUSTMENT" {
+  description = "scaling up adjustment"
+}
+
+variable "PROPOGATE" {
+  description = "propogate at launch"
+}
+
+variable "COMPARISONOPERATOR_GREATERTHAN" {
+  description = "greater than threshold"
+}
+
+variable "COMPARISONOPERATOR_LESSTHAN" {
+  description = "lesser than threshold"
+}
+
+variable "METRIC_NAME" {
+  description = "Metric Name"
+}
+
+variable "NAMESPACE" {
+  description = "namespace"
+}
+
+variable "STATISTIC" {
+  description = "statistic"
+}
+
+variable "PERIOD" {
+  description = "period"
+}
+
+variable "EVALUATION_PERIODS" {
+  description = "evaluation periods"
+}
+
+variable "THRESHOLD_HIGH" {
+  description = "high threshold"
+}
+
+variable "THRESHOLD_LOW" {
+  description = "low threshold"
+}
+
+variable "INTERNAL" {
+  description = "internal"
+}
+
+variable "LOAD_BALANCER_TYPE" {
+  description = "load balancer type"
+}
+
+variable "ENABLE_DELETION_PROTECTION" {
+  description = "enable deletion protection"
+}
+
+variable "TARGET_PORT" {
+  description = "target port"
+}
+
+variable "PROTOCOL" {
+  description = "protocol"
+}
+
+variable "TARGET_TYPE" {
+  description = "instance"
+}
+
+variable "TYPE" {
+  description = "type"
+}
+
+variable "ZONEID" {
+  description = "zoneid"
+}
+
+variable "ZONETYPE" {
+  description = "zone type"
+}
+
+variable "ZONENAME" {
+  description = "zone name"
+}
+
+variable "EVALUATE_TARGET_HEALTH" {
+  description = "evaluate target health"
+}
+
 //provider
 provider "aws" {
   region  = var.region
@@ -328,7 +444,7 @@ resource "aws_security_group" "application" {
     to_port=80
     protocol="tcp"
     description = "HTTP"
-    cidr_blocks=["0.0.0.0/0"]
+    security_groups = [aws_security_group.loadbalancer.id]
   }
   ingress {
     from_port= 22
@@ -342,14 +458,14 @@ resource "aws_security_group" "application" {
     to_port="${var.FRONTEND_PORT}"
     protocol="tcp"
     description = "Front End Port"
-    cidr_blocks=["0.0.0.0/0"]
+    security_groups = [aws_security_group.loadbalancer.id]
   }
   ingress {
     from_port= "${var.BACKEND_PORT}"
     to_port="${var.BACKEND_PORT}"
     protocol="tcp"
     description = "Back End port"
-    cidr_blocks=["0.0.0.0/0"]
+    security_groups = [aws_security_group.loadbalancer.id]
   }
 
   egress {
@@ -381,6 +497,34 @@ resource "aws_security_group" "database" {
   }
 }
 
+//security group - loadbalancer
+
+resource "aws_security_group" "loadbalancer" {
+    name = "loadbalancer"
+    description = "Create loadbalancer Security group"
+    vpc_id = "${aws_vpc.csye6225_a4.id}"
+
+    ingress {
+    from_port= 80
+    to_port=80
+    protocol="tcp"
+    description = "HTTP"
+    cidr_blocks=["0.0.0.0/0"]
+    }
+    ingress {
+    from_port="${var.BACKEND_PORT}"
+    to_port="${var.BACKEND_PORT}"
+    protocol="tcp"
+    description = "HTTP"
+    cidr_blocks=["0.0.0.0/0"]
+    }
+    egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    }
+}
 
 //subnet_group
 resource "aws_db_subnet_group" "rds_subnet" {
@@ -431,25 +575,25 @@ data "template_file" "init" {
 }
 
 //ec2 instance
-resource "aws_instance" "ec2Instance1" {
-  ami = "${var.AMI_ID}"
-  instance_type = "${var.EC2_INSTANCE_SIZE}"
-  vpc_security_group_ids = [aws_security_group.application.id]
-  subnet_id = "${aws_subnet.subnet_2.id}"
-  depends_on = [aws_db_instance.rds1]
-  disable_api_termination = "${var.API_TERMINATION}"
-  key_name = "${aws_key_pair.ass5.key_name}"
-  iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
-  user_data = "${data.template_file.init.rendered}"
-  tags = {
-    Name = "webapp"
-  } 
-  root_block_device {
-    delete_on_termination = "${var.EC2_ROOT_VOLUME_DELETE_ON_TERMINATION}"
-    volume_size = "${var.EC2_ROOT_VOLUME_SIZE}"
-    volume_type = "${var.EC2_ROOT_VOLUME_TYPE}"
-  }
-}
+// resource "aws_instance" "ec2Instance1" {
+//   ami = "${var.AMI_ID}"
+//   instance_type = "${var.EC2_INSTANCE_SIZE}"
+//   vpc_security_group_ids = [aws_security_group.application.id]
+//   subnet_id = "${aws_subnet.subnet_2.id}"
+//   depends_on = [aws_db_instance.rds1]
+//   disable_api_termination = "${var.API_TERMINATION}"
+//   key_name = "${aws_key_pair.ass5.key_name}"
+//   iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
+//   user_data = "${data.template_file.init.rendered}"
+//   tags = {
+//     Name = "webapp"
+//   } 
+//   root_block_device {
+//     delete_on_termination = "${var.EC2_ROOT_VOLUME_DELETE_ON_TERMINATION}"
+//     volume_size = "${var.EC2_ROOT_VOLUME_SIZE}"
+//     volume_type = "${var.EC2_ROOT_VOLUME_TYPE}"
+//   }
+// }
 
 
 
@@ -605,13 +749,191 @@ resource "aws_codedeploy_deployment_group" "csye6225-webapp-deployment" {
     events  = ["DEPLOYMENT_FAILURE"]
   }
 
+  autoscaling_groups = ["${aws_autoscaling_group.autoscale_webapp_group.name}"]
+
   alarm_configuration {
     alarms  = ["my-alarm-name"]
     enabled = "${var.ALARM}"
   }
 }
 
+resource "aws_codedeploy_deployment_group" "csye6225-webappUI-deployment" {
+  app_name               = "${aws_codedeploy_app.csye6225-webapp.name}"
+  deployment_group_name  = "csye6225-webappUI-deployment"
+  service_role_arn       = "${aws_iam_role.CodeDeployIAMRole.arn}"
+  deployment_config_name = "${aws_codedeploy_deployment_config.webapp.id}"
 
+  ec2_tag_filter {
+    key   = "Name"
+    type  = "KEY_AND_VALUE"
+    value = "webapp"
+  }
+
+  auto_rollback_configuration {
+    enabled = "${var.ROLLBACK}"
+    events  = ["DEPLOYMENT_FAILURE"]
+  }
+
+  autoscaling_groups = ["${aws_autoscaling_group.autoscale_webapp_group.name}"]
+
+  alarm_configuration {
+    alarms  = ["my-alarm-name"]
+    enabled = "${var.ALARM}"
+  }
+}
+
+resource "aws_launch_configuration" "asg_launch_config" {
+  name = "asg_launch_config"
+  image_id = "${var.AMI_ID}"
+  instance_type = "${var.EC2_INSTANCE_SIZE}"
+  associate_public_ip_address = "${var.PUBLIC_IP_ASSOCIATE}"
+  security_groups = [aws_security_group.application.id]
+  depends_on = [aws_db_instance.rds1]
+  iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
+  user_data = "${data.template_file.init.rendered}"
+  root_block_device {
+    volume_size = "${var.VOLUME_SIZE}"
+    volume_type = "${var.VOLUME_TYPE}"
+  } 
+  key_name = "${aws_key_pair.ass5.key_name}"
+}
+
+resource "aws_autoscaling_group" "autoscale_webapp_group" {
+  name = "autoscale_webapp_group"
+  min_size = "2"
+  max_size = "5"
+  launch_configuration = "${aws_launch_configuration.asg_launch_config.name}"
+  desired_capacity = "${var.DESIRED_CAPACITY}"
+  default_cooldown = "${var.DEFAULT_COOLDOWN}"
+  vpc_zone_identifier = ["${aws_subnet.subnet_1.id}", "${aws_subnet.subnet_2.id}"]
+  tag {
+    key                 = "Name"
+    value               = "webapp"
+    propagate_at_launch = "${var.PROPOGATE}"
+  }
+}
+
+resource "aws_autoscaling_policy" "scale_up" {
+    name = "scale_up"
+    autoscaling_group_name = "${aws_autoscaling_group.autoscale_webapp_group.name}"
+    adjustment_type = "${var.ADJUSTMENTTYPE}"
+    cooldown = "${var.DEFAULT_COOLDOWN}"
+    scaling_adjustment = "${var.SCALINGUPADJUSTMENT}"  
+}
+
+resource "aws_autoscaling_policy" "scale_down" {
+    name = "scale_down"
+    autoscaling_group_name = "${aws_autoscaling_group.autoscale_webapp_group.name}"
+    adjustment_type = "${var.ADJUSTMENTTYPE}"
+    cooldown = "${var.DEFAULT_COOLDOWN}"
+    scaling_adjustment = "${var.SCALINGDOWNADJUSTMENT}"
+}
+  
+
+resource "aws_cloudwatch_metric_alarm" "CPUAlarmHigh" {
+    alarm_name = "CPUAlarmHigh"
+    comparison_operator = "${var.COMPARISONOPERATOR_GREATERTHAN}"
+    evaluation_periods = "${var.EVALUATION_PERIODS}"
+    metric_name = "${var.METRIC_NAME}"
+    namespace = "${var.NAMESPACE}"
+    period = "${var.PERIOD}"
+    statistic = "${var.STATISTIC}"
+    threshold = "${var.THRESHOLD_HIGH}"
+    alarm_description = "Scale-up if CPU > 90%"
+    alarm_actions = [
+        "${aws_autoscaling_policy.scale_up.arn}"
+    ]
+    dimensions = {
+        AutoScalingGroupName = "${aws_autoscaling_group.autoscale_webapp_group.name}"
+    }
+    
+}
+
+resource "aws_cloudwatch_metric_alarm" "CPUAlarmLow" {
+    alarm_name = "CPUAlarmLow"
+    comparison_operator = "${var.COMPARISONOPERATOR_LESSTHAN}"
+    evaluation_periods = "${var.EVALUATION_PERIODS}"
+    metric_name = "${var.METRIC_NAME}"
+    namespace = "${var.NAMESPACE}"
+    period = "${var.PERIOD}"
+    statistic = "${var.STATISTIC}"
+    threshold = "${var.THRESHOLD_HIGH}"
+    alarm_description = "Scale-down if CPU < 70%"
+    alarm_actions = [
+        "${aws_autoscaling_policy.scale_down.arn}"
+    ]
+    dimensions = {
+        AutoScalingGroupName = "${aws_autoscaling_group.autoscale_webapp_group.name}"
+    }
+}
+
+  resource "aws_lb" "loadbalancerwebapp" {
+   name               = "loadbalancerwebapp"
+   internal           = "${var.INTERNAL}"
+   load_balancer_type = "${var.LOAD_BALANCER_TYPE}"
+   security_groups    = [aws_security_group.loadbalancer.id]
+   subnets            = ["${aws_subnet.subnet_1.id}","${aws_subnet.subnet_2.id}"]
+   enable_deletion_protection = "${var.ENABLE_DELETION_PROTECTION}"
+  tags = {
+    Environment = "development"
+  }
+  }
+
+  resource "aws_alb_target_group" "webapptargetgroup" {
+  name        = "webapptargetgroup"
+  port        = "${var.TARGET_PORT}"
+  protocol    = "${var.PROTOCOL}"
+  target_type = "${var.TARGET_TYPE}"
+  vpc_id      = "${aws_vpc.csye6225_a4.id}"
+  }
+
+  resource "aws_alb_target_group" "webappbackendtargetgroup" {
+  name        = "webappbackendtargetgroup"
+  port        = "${var.BACKEND_PORT}"
+  protocol    = "${var.PROTOCOL}"
+  target_type = "${var.TARGET_TYPE}"
+  vpc_id      = "${aws_vpc.csye6225_a4.id}"
+}
+
+resource "aws_autoscaling_attachment" "asg_attachment_webapp" {
+  autoscaling_group_name = "${aws_autoscaling_group.autoscale_webapp_group.name}"
+  alb_target_group_arn   = "${aws_alb_target_group.webapptargetgroup.arn}"
+}
+resource "aws_autoscaling_attachment" "asg_attachment_webapp_backend" {
+  autoscaling_group_name = "${aws_autoscaling_group.autoscale_webapp_group.name}"
+  alb_target_group_arn   = "${aws_alb_target_group.webappbackendtargetgroup.arn}"
+}
+
+
+resource "aws_lb_listener" "webapp_lb_listener" {
+  load_balancer_arn = "${aws_lb.loadbalancerwebapp.arn}"
+  port              = "${var.TARGET_PORT}"
+  protocol          = "${var.PROTOCOL}"
+  default_action {
+    type             = "${var.TYPE}"
+    target_group_arn = "${aws_alb_target_group.webapptargetgroup.arn}"
+  }
+}
+resource "aws_lb_listener" "webapp_backend_lb_listener" {
+  load_balancer_arn = "${aws_lb.loadbalancerwebapp.arn}"
+  port              = "${var.BACKEND_PORT}"
+  protocol          = "${var.PROTOCOL}"
+  default_action {
+    type             = "${var.TYPE}"
+    target_group_arn = "${aws_alb_target_group.webappbackendtargetgroup.arn}"
+  }
+}
+
+resource "aws_route53_record" "route53_webapp" {
+  zone_id = "${var.ZONEID}"
+  type    = "${var.ZONETYPE}"
+  name = "${var.ZONENAME}"
+  alias {
+    name                   = "${aws_lb.loadbalancerwebapp.dns_name}"
+    zone_id                = "${aws_lb.loadbalancerwebapp.zone_id}"
+    evaluate_target_health = "${var.EVALUATE_TARGET_HEALTH}"
+  }
+}
 
 
 
