@@ -326,6 +326,10 @@ variable "ZONEID" {
   description = "zoneid"
 }
 
+variable "domain" {
+  description = "domain"
+}
+
 variable "ZONETYPE" {
   description = "zone type"
 }
@@ -1014,6 +1018,12 @@ resource "aws_lambda_function" "passwordlambda"{
   runtime = "${var.RUNTIME}"
   filename = "outputs/lambda_payload.zip"
   memory_size = "256"
+  environment {
+    variables = {
+      domain = "${var.domain}",
+      dynamo = "${aws_dynamodb_table.csye6225.name}"
+    }
+  }
   }
 
 # allow sns to invoke the lambda
