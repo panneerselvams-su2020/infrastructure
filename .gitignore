@@ -13,6 +13,8 @@ terraform.tfstate.backup
 *.json
 *.sh
 *.terraform.tfstate.*
+lambda_payload
+outputs
 
 # Crash log files
 crash.log

@@ -318,12 +318,16 @@ variable "TARGET_TYPE" {
   description = "instance"
 }
 
-variable "TYPE" {
+variable "TYPEFILE" {
   description = "type"
 }
 
 variable "ZONEID" {
   description = "zoneid"
+}
+
+variable "domain" {
+  description = "domain"
 }
 
 variable "ZONETYPE" {
@@ -336,6 +340,58 @@ variable "ZONENAME" {
 
 variable "EVALUATE_TARGET_HEALTH" {
   description = "evaluate target health"
+}
+
+variable "PROTOCOL_LAMBDA" {
+  description ="protocol"
+}
+
+variable "TYPE" {
+  description = "type"
+}
+
+variable "SOURCE_DIR" {
+  description = "source dir"
+}
+
+variable "OUTPUT_PATH" {
+  description = "output path"
+}
+
+variable "FILENAME" {
+  description = "filename"
+}
+
+variable "FUNCTION_NAME" {
+  description = "function name"
+}
+
+variable "HANDLER" {
+  description = "handler"
+}
+
+variable "TIMEOUT" {
+  description = "timeout"
+}
+
+variable "RUNTIME" {
+  description = "runtime"
+}
+
+variable "STATEMENT_ID" {
+  description = "statement_id"
+}
+
+variable "ACTION" {
+  description = "action"
+}
+
+variable "PRINCIPAL" {
+  description = "principal"
+}
+
+variable "S3KEY" {
+  description = "s3 key"
 }
 
 //provider
@@ -433,25 +489,11 @@ resource "aws_security_group" "application" {
   vpc_id = "${aws_vpc.csye6225_a4.id}"
 
   ingress {
-    from_port= 443
-    to_port=443
-    protocol="tcp"
-    description = "HTTPS"
-    cidr_blocks=["0.0.0.0/0"]
-  }
-  ingress {
     from_port= 80
     to_port=80
     protocol="tcp"
     description = "HTTP"
     security_groups = [aws_security_group.loadbalancer.id]
-  }
-  ingress {
-    from_port= 22
-    to_port=22
-    protocol="tcp"
-    description = "Telnet"
-    cidr_blocks=["0.0.0.0/0"]
   }
   ingress {
     from_port= "${var.FRONTEND_PORT}"
@@ -935,6 +977,63 @@ resource "aws_route53_record" "route53_webapp" {
   }
 }
 
+resource "aws_sns_topic" "csye6225-summer2020" {
+  name = "csye6225-summer2020"
+  delivery_policy = "${file("SNSDeliveryPolicy.json")}"
+}
+
+resource "aws_sns_topic_subscription" "lambdasubscribe"{
+  topic_arn = "${aws_sns_topic.csye6225-summer2020.arn}"
+  protocol = "${var.PROTOCOL_LAMBDA}"
+  endpoint = "${aws_lambda_function.passwordlambda.arn}"
+}
+
+# lambda iam role
+resource "aws_iam_role" "lambda_role" {
+name = "lambda_role"
+assume_role_policy = "${file("LambdaRole.json")}"
+}
+
+resource "aws_iam_policy" "lambdaPolicy" {
+  name = "lambdaPolicy"
+  policy = "${file("LambdaPolicy.json")}"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
+  role       = "${aws_iam_role.lambda_role.name}"
+  policy_arn = "${aws_iam_policy.lambdaPolicy.arn}"
+}
+
+data "archive_file" "lambda_zip" { 
+type = "zip" 
+source_dir = "lambda_payload" 
+output_path = "outputs/lambda_payload.zip" 
+}
+
+resource "aws_lambda_function" "passwordlambda"{
+  function_name = "passwordlambda"
+  role = "${aws_iam_role.lambda_role.arn}"
+  handler = "${var.HANDLER}"
+  timeout = "${var.TIMEOUT}"
+  runtime = "${var.RUNTIME}"
+  filename = "outputs/lambda_payload.zip"
+  memory_size = "256"
+  environment {
+    variables = {
+      domain = "${var.domain}",
+      dynamo = "${aws_dynamodb_table.csye6225.name}"
+    }
+  }
+  }
+
+# allow sns to invoke the lambda
+resource "aws_lambda_permission" "invoke_sns" {
+statement_id = "${var.STATEMENT_ID}"
+action = "${var.ACTION}"
+function_name = "${aws_lambda_function.passwordlambda.function_name}"
+principal = "${var.PRINCIPAL}"
+source_arn = "${aws_sns_topic.csye6225-summer2020.arn}"
+}
 
 
 
