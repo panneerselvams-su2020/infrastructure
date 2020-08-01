@@ -394,6 +394,45 @@ variable "S3KEY" {
   description = "s3 key"
 }
 
+variable "SSH_PORT" {
+  description = "ssh port"
+}
+
+variable "HTTPSPORT" {
+  description = "https port"
+}
+
+variable "STORAGE_ENCRYPTED" {
+  description = "storage encrypted"
+}
+
+variable "PROTOCOLHTTPS" {
+  description = "http protocol"
+}
+
+variable "SSL_POLICY" {
+  description = "ssl policy"
+}
+
+variable "CERTIFICATE_ARN" {
+  description = "certificate arn"
+}
+
+variable "FAMILY" {
+  description = "family"
+}
+
+variable "PARAMETER_NAME" {
+  description = "parameter name"
+}
+
+variable "PARAMETER_VALUE" {
+  description = "parameter value"
+}
+
+variable "APPLY_METHOD" {
+  description = "apply method"
+}
 //provider
 provider "aws" {
   region  = var.region
@@ -489,18 +528,18 @@ resource "aws_security_group" "application" {
   vpc_id = "${aws_vpc.csye6225_a4.id}"
 
   ingress {
-    from_port= 80
-    to_port=80
+    from_port= "${var.TARGET_PORT}"
+    to_port="${var.TARGET_PORT}"
     protocol="tcp"
     description = "HTTP"
     security_groups = [aws_security_group.loadbalancer.id]
   }
   ingress {
-    from_port= "${var.FRONTEND_PORT}"
-    to_port="${var.FRONTEND_PORT}"
+    from_port= "${var.SSH_PORT}"
+    to_port="${var.SSH_PORT}"
     protocol="tcp"
-    description = "Front End Port"
-    security_groups = [aws_security_group.loadbalancer.id]
+    description = "SSH"
+    cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
     from_port= "${var.BACKEND_PORT}"
@@ -547,10 +586,10 @@ resource "aws_security_group" "loadbalancer" {
     vpc_id = "${aws_vpc.csye6225_a4.id}"
 
     ingress {
-    from_port= 80
-    to_port=80
+    from_port= "${var.HTTPSPORT}"
+    to_port="${var.HTTPSPORT}"
     protocol="tcp"
-    description = "HTTP"
+    description = "HTTPS"
     cidr_blocks=["0.0.0.0/0"]
     }
     ingress {
@@ -591,12 +630,23 @@ resource "aws_db_instance" "rds1" {
   publicly_accessible = "${var.PUBLICLY_ACCESSIBLE}"
   name = "${var.NAME}"
   allocated_storage= "${var.ALLOCATED_STORAGE}"
-  //final_snapshot_identifier = "${var.FINAL_SNAPSHOT_IDENTIFIER}"
+  storage_encrypted = "${var.STORAGE_ENCRYPTED}"
   skip_final_snapshot = "${var.SKIP_FINAL_SHOT}"
   vpc_security_group_ids = [aws_security_group.database.id]
+  parameter_group_name = "${aws_db_parameter_group.default.name}"
 }
 
- 
+resource "aws_db_parameter_group" "default" {
+    name = "rds-pg"
+    family = "${var.FAMILY}"
+    description = "RDS csye6225-summer2020"
+
+    parameter {
+        name = "${var.PARAMETER_NAME}"
+        value = "${var.PARAMETER_VALUE}"
+        apply_method = "${var.APPLY_METHOD}"
+    }
+}
 
 //key pair
 resource "aws_key_pair" "ass5" {
@@ -615,28 +665,6 @@ data "template_file" "init" {
     password = var.PASSWORD
   }
 }
-
-//ec2 instance
-// resource "aws_instance" "ec2Instance1" {
-//   ami = "${var.AMI_ID}"
-//   instance_type = "${var.EC2_INSTANCE_SIZE}"
-//   vpc_security_group_ids = [aws_security_group.application.id]
-//   subnet_id = "${aws_subnet.subnet_2.id}"
-//   depends_on = [aws_db_instance.rds1]
-//   disable_api_termination = "${var.API_TERMINATION}"
-//   key_name = "${aws_key_pair.ass5.key_name}"
-//   iam_instance_profile = "${aws_iam_instance_profile.ec2InstanceProfile1.name}"
-//   user_data = "${data.template_file.init.rendered}"
-//   tags = {
-//     Name = "webapp"
-//   } 
-//   root_block_device {
-//     delete_on_termination = "${var.EC2_ROOT_VOLUME_DELETE_ON_TERMINATION}"
-//     volume_size = "${var.EC2_ROOT_VOLUME_SIZE}"
-//     volume_type = "${var.EC2_ROOT_VOLUME_TYPE}"
-//   }
-// }
-
 
 
 //dynamo db table
@@ -917,12 +945,12 @@ resource "aws_cloudwatch_metric_alarm" "CPUAlarmLow" {
    subnets            = ["${aws_subnet.subnet_1.id}","${aws_subnet.subnet_2.id}"]
    enable_deletion_protection = "${var.ENABLE_DELETION_PROTECTION}"
   tags = {
-    Environment = "development"
+    Environment = "production"
   }
   }
 
   resource "aws_alb_target_group" "webapptargetgroup" {
-  name        = "webapptargetgroup"
+  name        = "webapptarget"
   port        = "${var.TARGET_PORT}"
   protocol    = "${var.PROTOCOL}"
   target_type = "${var.TARGET_TYPE}"
@@ -949,19 +977,23 @@ resource "aws_autoscaling_attachment" "asg_attachment_webapp_backend" {
 
 resource "aws_lb_listener" "webapp_lb_listener" {
   load_balancer_arn = "${aws_lb.loadbalancerwebapp.arn}"
-  port              = "${var.TARGET_PORT}"
-  protocol          = "${var.PROTOCOL}"
+  port              = "${var.HTTPSPORT}"
+  protocol          = "${var.PROTOCOLHTTPS}"
+  ssl_policy        = "${var.SSL_POLICY}"
+  certificate_arn   = "${var.CERTIFICATE_ARN}"
   default_action {
-    type             = "${var.TYPE}"
+    type             = "forward"
     target_group_arn = "${aws_alb_target_group.webapptargetgroup.arn}"
   }
 }
 resource "aws_lb_listener" "webapp_backend_lb_listener" {
   load_balancer_arn = "${aws_lb.loadbalancerwebapp.arn}"
-  port              = "${var.BACKEND_PORT}"
-  protocol          = "${var.PROTOCOL}"
+  port              = "8080"
+  protocol          = "${var.PROTOCOLHTTPS}"
+  ssl_policy        = "${var.SSL_POLICY}"
+  certificate_arn   = "${var.CERTIFICATE_ARN}"
   default_action {
-    type             = "${var.TYPE}"
+    type             = "forward"
     target_group_arn = "${aws_alb_target_group.webappbackendtargetgroup.arn}"
   }
 }
